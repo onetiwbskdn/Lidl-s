@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🌍 Мировая Империя</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.0.0/css/flag-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif;user-select:none;-webkit-tap-highlight-color:transparent}
+body{background:#0a0e1a;color:#e0e6f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ВЕРХНЯЯ ПАНЕЛЬ */
+.topbar{background:#131a2e;padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;border-bottom:1px solid #2a3550;font-size:13px;z-index:10}
+.stat{display:flex;align-items:center;gap:4px}
+.stat b{color:#7ec8ff}
+.stat.money b{color:#6bff8b}
+.stat.sick b{color:#ff5577}
+.flag-top{font-size:20px}
+
+/* КАРТА МИРА */
+#world-container{flex:1;position:relative;background:radial-gradient(circle at center, #1a2a4a 0%, #0a0e1a 100%);overflow:hidden;display:flex;justify-content:center;align-items:center}
+.map-bg{position:absolute;inset:0;opacity:0.1;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="white" stroke-width="0.5"/><path d="M10,50 Q50,10 90,50 M10,50 Q50,90 90,50" fill="none" stroke="white" stroke-width="0.5"/></svg>');background-size:cover}
+
+/* ТОЧКИ СТРАН */
+.country-node{position:absolute;transform:translate(-50%, -50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:0.2s;z-index:5}
+.country-node:hover,.country-node:active{z-index:10;transform:translate(-50%, -50%) scale(1.15)}
+.country-flag{font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.6);border-radius:4px;background:#131a2e;padding:2px;border:1px solid #2a3550}
+.country-name{font-size:10px;font-weight:600;margin-top:4px;background:rgba(0,0,0,0.8);padding:2px 6px;border-radius:4px;white-space:nowrap;border:1px solid #2a3550}
+.node-player{border-color:#6bff8b;box-shadow:0 0 15px #6bff8b}
+.node-war{border-color:#ff5577;box-shadow:0 0 15px #ff5577}
+.node-ally{border-color:#7ec8ff;box-shadow:0 0 15px #7ec8ff}
+.node-sick .country-name{color:#ff5577}
+
+/* НИЖНЕЕ МЕНЮ */
+.bottom-nav{display:flex;background:#131a2e;border-top:1px solid #2a3550;padding:8px 4px;gap:4px;justify-content:space-around;z-index:10}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px;border-radius:8px;background:transparent;border:none;color:#a0b0c0;font-size:11px;cursor:pointer}
+.nav-btn.active{background:#4a6af0;color:#fff}
+.nav-btn .icon{font-size:18px;margin-bottom:2px}
+
+/* МОДАЛЬНЫЕ ОКНА */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:100;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:#131a2e;border:1px solid #2a3550;border-radius:12px;width:100%;max-width:400px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.8)}
+.modal-header{padding:12px 16px;border-bottom:1px solid #2a3550;display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{font-size:18px;color:#7ec8ff;display:flex;align-items:center;gap:8px}
+.close-btn{background:transparent;border:none;color:#ff6b6b;font-size:24px;cursor:pointer}
+.modal-body{padding:16px;overflow-y:auto;flex:1}
+
+.diplo-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.diplo-btn{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:600;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.diplo-btn.war{background:#5a2020;border:1px solid #ff5577}
+.diplo-btn.peace{background:#1f3a2a;border:1px solid #6bff8b}
+.diplo-btn.ally{background:#1a2a5a;border:1px solid #7ec8ff}
+.diplo-btn.gift{background:#4a3a1a;border:1px solid #ffb86b}
+
+/* ПАНЕЛИ */
+.content-panel{position:fixed;top:60px;bottom:60px;left:0;right:0;background:#0a0e1a;z-index:5;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.card{background:#131a2e;border:1px solid #2a3550;border-radius:10px;padding:12px}
+.card h3{margin-bottom:8px;color:#7ec8ff;font-size:15px}
+.item{background:#0f1524;border:1px solid #2a3550;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.item .name{flex:1}.item .cost{color:#ffb86b;font-size:11px}
+.item button{background:#4a6af0;border:none;padding:6px 12px;border-radius:6px;color:#fff;font-weight:bold}
+.item button:disabled{background:#2a3550;color:#607090}
+.log{max-height:300px;overflow-y:auto;font-size:12px;background:#0a0e1a;border-radius:6px;padding:8px}
+.log div{padding:4px 0;border-bottom:1px solid #1a2030;color:#a0b0c0}
+.log .disaster{color:#ff5577}
+.log .good{color:#6bff8b}
+
+/* СТАРТ */
+#startScreen{position:fixed;inset:0;background:#0a0e1a;z-index:1000;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px}
+#startScreen .box{background:#131a2e;border:1px solid #2a3550;border-radius:14px;padding:24px;width:100%;max-width:400px;text-align:center}
+#startScreen input,#startScreen select{width:100%;margin:8px 0;padding:10px;background:#0f1524;color:#fff;border:1px solid #2f3a5a;border-radius:6px;font-size:14px}
+#startScreen button{width:100%;padding:12px;margin-top:10px;font-size:15px;background:#4a6af0;border:none;border-radius:6px;color:#fff;font-weight:600}
+#flagPicker{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0;max-height:150px;overflow-y:auto;padding:6px;background:#0a0e1a;border-radius:8px}
+.flag-cell{padding:6px;border:2px solid transparent;border-radius:6px;cursor:pointer;display:flex;justify-content:center}
+.flag-cell.selected{border-color:#4a6af0;background:#1f2a44}
+.fi{border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.1);font-size:20px}
+.sick-badge{background:#5a1a2a;border:1px solid #ff5577;color:#ff8899;padding:2px 6px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <div class="box">
+    <h1 style="color:#7ec8ff;margin-bottom:10px">🌍 МИРОВАЯ ИМПЕРИЯ</h1>
+    <p style="color:#a0b0c0;font-size:13px;margin-bottom:16px">Выбери свою страну и правь миром</p>
+    
+    <label style="font-size:12px;color:#a0b0c0;text-align:left;display:block">Твоя страна:</label>
+    <div id="flagPicker"></div>
+    
+    <input id="cName" placeholder="Название страны" maxlength="20" value="Россия">
+    
+    <button onclick="startGame()">🚀 Начать правление</button>
+    <button onclick="loadGame()" style="background:#1f2a44;border-color:#2f3a5a;color:#a0b0c0">💾 Загрузить</button>
+  </div>
+</div>
+
+<div id="game" class="hidden" style="display:flex;flex-direction:column;height:100vh">
+  <div id="topbar" class="topbar"></div>
+  
+  <div id="world-container">
+    <div class="map-bg"></div>
+    <div id="world-map"></div>
+  </div>
+
+  <!-- Панели -->
+  <div id="panel-army" class="content-panel hidden"></div>
+  <div id="panel-tech" class="content-panel hidden"></div>
+  <div id="panel-online" class="content-panel hidden"></div>
+  <div id="panel-log" class="content-panel hidden"></div>
+  
+  <div id="bottom-nav" class="bottom-nav">
+    <button class="nav-btn active" onclick="setTab('map')"><span class="icon">🗺️</span>Карта</button>
+    <button class="nav-btn" onclick="setTab('army')"><span class="icon">⚔️</span>Армия</button>
+    <button class="nav-btn" onclick="setTab('tech')"><span class="icon">🔬</span>Наука</button>
+    <button class="nav-btn" onclick="setTab('online')"><span class="icon">👥</span>Онлайн</button>
+    <button class="nav-btn" onclick="setTab('log')"><span class="icon">📜</span>Журнал</button>
+  </div>
+</div>
+
+<!-- Модальное окно дипломатии -->
+<div id="diploModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="diploTitle">Страна</h3>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="diploBody"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+/* ============ 32 СТРАНЫ С КООРДИНАТАМИ ============ */
+// Координаты в процентах для карты (X, Y)
+const AI_COUNTRIES = [
+  // Америка
+  {name:'Канада',flag:'ca',power:250,x:15,y:20},
+  {name:'США',flag:'us',power:1200,x:15,y:30},
+  {name:'Мексика',flag:'mx',power:200,x:15,y:45},
+  {name:'Бразилия',flag:'br',power:350,x:25,y:70},
+  {name:'Аргентина',flag:'ar',power:120,x:22,y:85},
+  // Европа
+  {name:'Великобритания',flag:'gb',power:600,x:42,y:25},
+  {name:'Франция',flag:'fr',power:600,x:45,y:30},
+  {name:'Германия',flag:'de',power:500,x:48,y:25},
+  {name:'Италия',flag:'it',power:350,x:48,y:35},
+  {name:'Испания',flag:'es',power:250,x:42,y:38},
+  {name:'Польша',flag:'pl',power:250,x:52,y:25},
+  {name:'Швеция',flag:'se',power:100,x:50,y:15},
+  {name:'Норвегия',flag:'no',power:100,x:46,y:12},
+  {name:'Финляндия',flag:'fi',power:100,x:53,y:12},
+  {name:'Украина',flag:'ua',power:200,x:55,y:30},
+  {name:'Беларусь',flag:'by',power:80,x:53,y:25},
+  // Африка и Ближний Восток
+  {name:'Египет',flag:'eg',power:150,x:52,y:50},
+  {name:'Саудовская Арабия',flag:'sa',power:300,x:58,y:48},
+  {name:'Израиль',flag:'il',power:350,x:55,y:45},
+  {name:'Турция',flag:'tr',power:350,x:54,y:38},
+  {name:'Иран',flag:'ir',power:300,x:60,y:40},
+  // Азия
+  {name:'Россия',flag:'ru',power:900,x:65,y:20},
+  {name:'Казахстан',flag:'kz',power:100,x:65,y:30},
+  {name:'Индия',flag:'in',power:700,x:68,y:50},
+  {name:'Китай',flag:'cn',power:1100,x:75,y:40},
+  {name:'Пакистан',flag:'pk',power:200,x:66,y:45},
+  {name:'Непал',flag:'np',power:30,x:71,y:45},
+  {name:'Вьетнам',flag:'vn',power:150,x:78,y:50},
+  {name:'Южная Корея',flag:'kr',power:450,x:82,y:40},
+  {name:'Северная Корея',flag:'kp',power:300,x:82,y:35},
+  {name:'Япония',flag:'jp',power:500,x:88,y:38},
+  {name:'Индонезия',flag:'id',power:200,x:78,y:65},
+  // Океания
+  {name:'Австралия',flag:'au',power:300,x:85,y:80}
+];
+
+const U = [
+  {id:'infantry',n:'🪖 Пехота',c:100,s:5,power:1,upkeep:5},
+  {id:'special',n:'🥷 Спецназ',c:800,s:30,power:8,upkeep:30},
+  {id:'tank',n:'🚜 Танк',c:2000,s:100,power:20,upkeep:80},
+  {id:'fighter',n:'✈️ Истребитель',c:5000,s:200,power:40,upkeep:150},
+  {id:'nuke',n:'☢️ Ядерная бомба',c:100000,s:1000,power:5000,upkeep:500}
+];
+
+const T = [
+  {id:'internet',n:'🌐 Интернет',c:5000},
+  {id:'medicine',n:'💊 Медицина',c:8000},
+  {id:'vaccine',n:'💉 Вакцина',c:20000},
+  {id:'space',n:'🚀 Космос',c:30000}
+];
+
+const DISEASES = [
+  {name:'🦠 COVID-99',popLoss:0.15,duration:5},
+  {name:'💀 Чума',popLoss:0.30,duration:7},
+  {name:'🤒 Птичий грипп',popLoss:0.08,duration:4}
+];
+
+/* ============ СОСТОЯНИЕ ============ */
+let state = null;
+let selectedFlag = 'ru';
+let selectedName = 'Россия';
+let currentTab = 'map';
+let globalTimer = null;
+let nextEventTime = 0;
+
+function newState(cfg){
+  const filtered = AI_COUNTRIES.filter(c => c.flag !== cfg.flag);
+  
+  const ais = filtered.map((c,i)=>({
+    id:'ai'+i, name:c.name, flag:c.flag, x:c.x, y:c.y,
+    strength: c.power + Math.floor(Math.random()*100),
+    attitude: Math.floor(Math.random()*40)-20,
+    atWar:false, ally:false, defeated:false,
+    activeDiseases: []
+  }));
+  
+  return {
+    country: cfg,
+    day: 1,
+    res: {money:10000, food:2000, steel:500},
+    pop: 100, happiness: 70,
+    army: {}, techs: [], activeDiseases: [],
+    ai: ais,
+    log: ['👑 Правление началось! Кликай на страны на карте.'],
+    online: {peer:null, conns:[], roomCode:null, players:{}, chat:[]},
+    globalEventCount: 0
+  };
+}
+
+/* ============ СТАРТ ============ */
+function initFlagPicker(){
+  const picker = document.getElementById('flagPicker');
+  picker.innerHTML = AI_COUNTRIES.map(c=>`
+    <div class="flag-cell ${c.flag===selectedFlag?'selected':''}" onclick="pickFlag('${c.flag}','${c.name}')">
+      <span class="fi fi-${c.flag}"></span>
+    </div>
+  `).join('');
+}
+
+function pickFlag(flag, name){
+  selectedFlag = flag;
+  selectedName = name;
+  document.getElementById('cName').value = name;
+  document.querySelectorAll('.flag-cell').forEach(el=>{
+    el.classList.toggle('selected', el.querySelector('.fi').classList.contains('fi-'+flag));
+  });
+}
+
+function startGame(){
+  const name = document.getElementById('cName').value.trim() || selectedName;
+  state = newState({name, flag: selectedFlag});
+  
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  
+  renderWorldMap();
+  renderTopbar();
+  setInterval(tick, 5000);
+  setInterval(save, 10000);
+  startGlobalEventTimer();
+}
+
+function loadGame(){
+  const raw = localStorage.getItem('imperia_world_save');
+  if(!raw){alert('Сохранений нет');return;}
+  try{
+    state = JSON.parse(raw);
+    state.online = {peer:null, conns:[], roomCode:null, players:{}, chat:[]};
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('game').classList.remove('hidden');
+    renderWorldMap();
+    renderTopbar();
+    setInterval(tick, 5000);
+    setInterval(save, 10000);
+    startGlobalEventTimer();
+  }catch(e){alert('Ошибка загрузки');}
+}
+
+function save(){
+  if(!state)return;
+  const s = JSON.parse(JSON.stringify(state));
+  s.online = {peer:null,conns:[],roomCode:null,players:{},chat:[]};
+  localStorage.setItem('imperia_world_save', JSON.stringify(s));
+}
+
+/* ============ КАРТА МИРА ============ */
+function renderWorldMap(){
+  const map = document.getElementById('world-map');
+  
+  // Рендер ИИ стран
+  let html = state.ai.map(ai=>{
+    let cls = 'country-node';
+    if(ai.defeated) cls += ' hidden';
+    if(ai.atWar) cls += ' node-war';
+    if(ai.ally) cls += ' node-ally';
+    if(ai.activeDiseases && ai.activeDiseases.length > 0) cls += ' node-sick';
+    
+    return `<div class="${cls}" style="left:${ai.x}%; top:${ai.y}%" onclick="openDiplo('${ai.id}')">
+      <div class="country-flag fi fi-${ai.flag}"></div>
+      <div class="country-name">${ai.name}</div>
+    </div>`;
+  }).join('');
+  
+  // Рендер стран игроков (онлайн)
+  for(const [id, p] of Object.entries(state.online.players)){
+    const coords = AI_COUNTRIES.find(c=>c.flag === p.flag) || {x:50,y:50};
+    html += `<div class="country-node node-player" style="left:${coords.x}%; top:${coords.y}%" onclick="openPlayerDiplo('${id}')">
+      <div class="country-flag fi fi-${p.flag}"></div>
+      <div class="country-name">${p.name} (Игрок)</div>
+    </div>`;
+  }
+  
+  // Рендер своей страны (всегда в центре экрана, если нет координат)
+  const myCoords = AI_COUNTRIES.find(c=>c.flag === state.country.flag) || {x:50,y:50};
+  html += `<div class="country-node node-player" style="left:${myCoords.x}%; top:${myCoords.y}%; z-index:20">
+    <div class="country-flag fi fi-${state.country.flag}" style="border:2px solid #6bff8b"></div>
+    <div class="country-name" style="color:#6bff8b">${state.country.name} (ВЫ)</div>
+  </div>`;
+  
+  map.innerHTML = html;
+}
+
+function renderTopbar(){
+  const left = Math.max(0, nextEventTime - Date.now());
+  const min = Math.floor(left/60000);
+  
+  document.getElementById('topbar').innerHTML = `
+    <div class="stat"><span class="fi fi-${state.country.flag}" style="font-size:20px"></span> <b>${state.country.name}</b></div>
+    <div class="stat">📅 <b>${state.day}</b></div>
+    <div class="stat">👥 <b>${Math.floor(state.pop)}</b></div>
+    <div class="stat">😊 <b style="color:${state.happiness>50?'#6bff8b':'#ff5577'}">${state.happiness}%</b></div>
+    <div class="stat money">💰 <b>${Math.floor(state.res.money)}</b></div>
+    <div class="stat">⚔️ <b>${armyPower()}</b></div>
+    <div class="stat ${state.activeDiseases.length>0?'sick':''}">🦠 <b>${state.activeDiseases.length}</b></div>
+    <div class="stat">⏱️ <b style="color:#ffb86b">${min}м</b></div>
+  `;
+}
+
+function armyPower(){
+  let p = 0;
+  for(const [id,c] of Object.entries(state.army)){
+    const u = U.find(x=>x.id===id);
+    if(u) p += u.power * c;
+  }
+  return Math.floor(p * (1 + state.techs.length * 0.05));
+}
+
+/* ============ ДИПЛОМАТИЯ (КЛИК ПО СТРАНЕ) ============ */
+function openDiplo(aiId){
+  const ai = state.ai.find(a=>a.id===aiId);
+  if(!ai || ai.defeated) return;
+  
+  const modal = document.getElementById('diploModal');
+  const title = document.getElementById('diploTitle');
+  const body = document.getElementById('diploBody');
+  
+  title.innerHTML = `<span class="fi fi-${ai.flag}"></span> ${ai.name}`;
+  
+  let status = ai.atWar ? '⚔️ ВОЙНА' : ai.ally ? '🤝 СОЮЗ' : '☮️ Нейтралитет';
+  let relColor = ai.attitude > 20 ? '#6bff8b' : ai.attitude < -20 ? '#ff5577' : '#ffb86b';
+  
+  let giftCost = 1000;
+  
+  body.innerHTML = `
+    <div style="background:#0f1524;padding:12px;border-radius:8px;margin-bottom:12px;font-size:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span>Статус:</span> <b>${status}</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span>Военная мощь:</span> <b style="color:#ff6b6b">${Math.floor(ai.strength)}</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span>Отношение:</span> <b style="color:${relColor}">${ai.attitude > 0 ? '+' : ''}${ai.attitude}</b>
+      </div>
+    </div>
+    
+    <div class="diplo-actions">
+      <button class="diplo-btn ally" onclick="actionAlly('${ai.id}')">
+        <span style="font-size:20px">🤝</span> Союз
+      </button>
+      <button class="diplo-btn peace" onclick="actionPeace('${ai.id}')">
+        <span style="font-size:20px">🕊️</span> Мир
+      </button>
+      <button class="diplo-btn war" onclick="actionWar('${ai.id}')">
+        <span style="font-size:20px">⚔️</span> Война
+      </button>
+      <button class="diplo-btn gift" onclick="actionGift('${ai.id}')">
+        <span style="font-size:20px">🎁</span> Подарок (${giftCost}💰)
+      </button>
+    </div>
+  `;
+  
+  modal.classList.remove('hidden');
+}
+
+function closeModal(){
+  document.getElementById('diploModal').classList.add('hidden');
+}
+
+function actionWar(id){
+  const ai = state.ai.find(a=>a.id===id);
+  if(!ai) return;
+  ai.atWar = true; ai.ally = false; ai.attitude = -100;
+  log(`⚔️ Вы объявили войну: ${ai.name}`, 'disaster');
+  closeModal();
+  renderWorldMap();
+}
+
+function actionPeace(id){
+  const ai = state.ai.find(a=>a.id===id);
+  if(!ai) return;
+  ai.atWar = false; ai.attitude += 30;
+  log(`🕊️ Вы заключили мир с ${ai.name}`, 'good');
+  closeModal();
+  renderWorldMap();
+}
+
+function actionAlly(id){
+  const ai = state.ai.find(a=>a.id===id);
+  if(!ai) return;
+  if(ai.attitude < 10){ alert('Слишком низкое отношение! Подари подарок.'); return; }
+  ai.ally = true; ai.atWar = false;
+  log(`🤝 Вы заключили союз с ${ai.name}`, 'good');
+  closeModal();
+  renderWorldMap();
+}
+
+function actionGift(id){
+  const ai = state.ai.find(a=>a.id===id);
+  if(!ai) return;
+  if(state.res.money < 1000){ alert('Нужно 1000💰'); return; }
+  state.res.money -= 1000;
+  ai.attitude += 25;
+  log(`🎁 Вы подарили ресурсы ${ai.name} (Отношение +25)`, 'good');
+  renderTopbar();
+  openDiplo(id); // Обновляем окно
+}
+
+/* Онлайн дипломатия с игроками */
+function openPlayerDiplo(peerId){
+  const p = state.online.players[peerId];
+  if(!p) return;
+  
+  const modal = document.getElementById('diploModal');
+  const title = document.getElementById('diploTitle');
+  const body = document.getElementById('diploBody');
+  
+  title.innerHTML = `<span class="fi fi-${p.flag}"></span> ${p.name} (Игрок)`;
+  
+  body.innerHTML = `
+    <div style="background:#0f1524;padding:12px;border-radius:8px;margin-bottom:12px;font-size:14px;text-align:center">
+      Живой игрок в сети
+    </div>
+    <div class="diplo-actions">
+      <button class="diplo-btn ally" onclick="netAction('${peerId}','ally')">
+        <span style="font-size:20px">🤝</span> Предложить союз
+      </button>
+      <button class="diplo-btn peace" onclick="netAction('${peerId}','peace')">
+        <span style="font-size:20px">🕊️</span> Предложить мир
+      </button>
+      <button class="diplo-btn war" onclick="netAction('${peerId}','war')">
+        <span style="font-size:20px">⚔️</span> Объявить войну
+      </button>
+      <button class="diplo-btn gift" onclick="netAction('${peerId}','gift')">
+        <span style="font-size:20px">🎁</span> Отправить подарок
+      </button>
+    </div>
+  `;
+  
+  modal.classList.remove('hidden');
+}
+
+function netAction(peerId, action){
+  const conn = state.online.conns.find(c=>c.peer===peerId);
+  if(!conn){ alert('Соединение потеряно'); return; }
+  const p = state.online.players[peerId];
+  
+  if(action === 'war'){
+    if(!confirm(`Объявить войну ${p.name}?`)) return;
+    conn.send({t:'war', name: state.country.name});
+    log(`⚔️ Вы объявили войну игроку ${p.name}`, 'disaster');
+  } else if(action === 'gift'){
+    if(state.res.money < 1000){ alert('Нужно 1000💰'); return; }
+    state.res.money -= 1000;
+    conn.send({t:'gift', name: state.country.name});
+    log(`🎁 Вы отправили подарок игроку ${p.name}`, 'good');
+    renderTopbar();
+  } else {
+    conn.send({t:action, name: state.country.name});
+    log(`Вы отправили запрос (${action}) игроку ${p.name}`);
+  }
+  closeModal();
+}
+
+/* ============ ЛОГИКА ИГРЫ ============ */
+function tick(){
+  if(!state) return;
+  state.day++;
+  
+  // Экономика
+  const income = Math.floor(state.pop * 2 * (state.happiness/100));
+  state.res.money += income;
+  state.res.food -= Math.floor(state.pop * 0.5);
+  
+  if(state.res.food < 0){
+    state.res.food = 0;
+    state.happiness = Math.max(0, state.happiness - 2);
+    state.pop = Math.floor(state.pop * 0.95);
+  } else {
+    if(state.happiness > 40 && state.pop < 1000) state.pop += Math.floor(state.pop * 0.01) + 1;
+  }
+  
+  // Болезни
+  applyDiseasesTick();
+  
+  // Войны с ИИ
+  const activeWars = state.ai.filter(a=>a.atWar && !a.defeated);
+  for(const ai of activeWars){
+    const myPow = armyPower();
+    if(myPow > ai.strength){
+      ai.strength = Math.max(0, ai.strength - myPow*0.05);
+      if(ai.strength <= 0){
+        ai.defeated = true; ai.atWar = false;
+        state.res.money += 5000;
+        log(`🏆 Вы победили ${ai.name}! Забрано 5000💰`, 'good');
+      }
+    } else {
+      state.happiness = Math.max(0, state.happiness - 1);
+      if(Math.random() < 0.3){
+        // Теряем войска
+        for(const id in state.army){
+          if(state.army[id] > 0) state.army[id]--;
+        }
+      }
+    }
+  }
+  
+  save();
+  renderTopbar();
+  if(currentTab === 'map') renderWorldMap();
+}
+
+function applyDiseasesTick(){
+  for(let i=state.activeDiseases.length-1; i>=0; i--){
+    const d = state.activeDiseases[i];
+    state.pop = Math.floor(state.pop * (1 - d.popLoss/10));
+    state.happiness = Math.max(0, state.happiness - 2);
+    d.remaining--;
+    if(d.remaining <= 0){
+      log(`✅ Болезнь ${d.name} отступила!`, 'good');
+      state.activeDiseases.splice(i, 1);
+    }
+  }
+}
+
+function startGlobalEventTimer(){
+  nextEventTime = Date.now() + 300000; // 5 минут
+  if(globalTimer) clearInterval(globalTimer);
+  globalTimer = setInterval(()=>{
+    if(!state) return;
+    const disease = DISEASES[Math.floor(Math.random()*DISEASES.length)];
+    if(Math.random() < 0.5){
+      // Заболел игрок
+      if(!state.activeDiseases.some(d=>d.name===disease.name)){
+        state.activeDiseases.push({...disease, remaining: disease.duration});
+        log(`🦠 ВСПЫШКА ${disease.name} в вашей стране!`, 'disaster');
+      }
+    } else {
+      // Заболела случайная страна
+      const alive = state.ai.filter(a=>!a.defeated);
+      if(alive.length > 0){
+        const victim = alive[Math.floor(Math.random()*alive.length)];
+        if(!victim.activeDiseases) victim.activeDiseases = [];
+        victim.activeDiseases.push({...disease, remaining: disease.duration});
+        log(`🦠 Вспышка ${disease.name} в ${victim.name}`, 'disaster');
+      }
+    }
+    nextEventTime = Date.now() + 300000;
+    renderWorldMap();
+  }, 300000);
+}
+
+function log(msg, cls=''){
+  if(!state)return;
+  state.log.unshift(`[День ${state.day}] ${msg}${cls?'||'+cls:''}`);
+  if(state.log.length>100) state.log.pop();
+}
+
+/* ============ ВКЛАДКИ ============ */
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.content-panel').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('world-container').classList.add('hidden');
+  
+  if(tab === 'map'){
+    document.querySelector('.nav-btn:nth-child(1)').classList.add('active');
+    document.getElementById('world-container').classList.remove('hidden');
+    renderWorldMap();
+  } else {
+    document.querySelector(`.nav-btn[onclick="setTab('${tab}')"]`).classList.add('active');
+    document.getElementById(`panel-${tab}`).classList.remove('hidden');
+    
+    if(tab === 'army') renderArmy();
+    if(tab === 'tech') renderTech();
+    if(tab === 'online') renderOnline();
+    if(tab === 'log') renderLog();
+  }
+}
+
+function renderArmy(){
+  document.getElementById('panel-army').innerHTML = `
+    <div class="card"><h3>⚔️ Ваша мощь: ${armyPower()}</h3></div>
+    ${U.map(u=>`
+      <div class="item">
+        <div class="name"><b>${u.n}</b> <span style="color:#7ec8ff">×${state.army[u.id]||0}</span><div class="cost">💰${u.c} ⚙️${u.s}</div></div>
+        <button onclick="recruit('${u.id}')">+</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderTech(){
+  document.getElementById('panel-tech').innerHTML = `
+    <div class="card"><h3>🔬 Наука (${state.techs.length})</h3></div>
+    ${T.map(t=>{
+      const done = state.techs.includes(t.id);
+      return `<div class="item">
+        <div class="name"><b>${t.n}</b><div class="cost">💰${t.c}</div></div>
+        <button ${done?'disabled':''} onclick="research('${t.id}')">${done?'✅':'Изучить'}</button>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function renderOnline(){
+  const o = state.online;
+  let html = `<div class="card"><h3>👥 Сетевая игра</h3>`;
+  
+  if(!o.peer){
+    html += `
+      <p style="margin-bottom:10px;font-size:13px;color:#a0b0c0">Создай комнату и отправь код другу. Он появится на карте!</p>
+      <button onclick="createRoom()" style="width:100%;padding:12px;background:#4a6af0;border:none;border-radius:8px;color:#fff;font-weight:bold;margin-bottom:10px">🎮 Создать комнату</button>
+      <div style="display:flex;gap:6px">
+        <input id="joincode" placeholder="Код друга" maxlength="6" style="flex:1;padding:10px;background:#0f1524;color:#fff;border:1px solid #2a3550;border-radius:6px;text-transform:uppercase">
+        <button onclick="joinRoom(document.getElementById('joincode').value)" style="padding:10px 16px;background:#1f2a44;border:1px solid #2f3a5a;border-radius:6px;color:#fff">Войти</button>
+      </div>
+    `;
+  } else {
+    html += `
+      <p><b>Код комнаты:</b> <span style="color:#6bff8b;font-size:18px">${o.roomCode||'→ '+o.joinedCode}</span></p>
+      <p style="margin:10px 0;font-size:13px">Игроков: <b>${Object.keys(o.players).length}</b></p>
+      <button onclick="disconnectOnline()" style="width:100%;padding:10px;background:#5a2020;border:none;border-radius:6px;color:#fff">❌ Отключиться</button>
+    `;
+  }
+  html += `</div>`;
+  document.getElementById('panel-online').innerHTML = html;
+}
+
+function renderLog(){
+  document.getElementById('panel-log').innerHTML = `
+    <div class="card"><h3>📜 Журнал</h3>
+      <div class="log">
+        ${state.log.map(l=>{
+          const [msg,cls] = l.split('||');
+          return `<div class="${cls||''}">${msg}</div>`;
+        }).join('')}
+      </div>
+      <button onclick="save()" style="width:100%;margin-top:10px;padding:10px;background:#1f2a44;border:1px solid #2f3a5a;border-radius:6px;color:#fff">💾 Сохранить</button>
+    </div>
+  `;
+}
+
+function recruit(id){
+  const u = U.find(x=>x.id===id);
+  if(!u)return;
+  if(state.res.money < u.c || state.res.steel < u.s){alert('Не хватает ресурсов!');return;}
+  state.res.money -= u.c;
+  state.res.steel -= u.s;
+  state.army[id] = (state.army[id]||0)+1;
+  log(`⚔️ Завербовано: ${u.n}`);
+  renderArmy();
+  renderTopbar();
+}
+
+function research(id){
+  const t = T.find(x=>x.id===id);
+  if(!t || state.techs.includes(id))return;
+  if(state.res.money < t.c){alert('Не хватает денег!');return;}
+  state.res.money -= t.c;
+  state.techs.push(id);
+  log(`🔬 Исследовано: ${t.n}`, 'good');
+  renderTech();
+  renderTopbar();
+}
+
+/* ============ СЕТЬ (PEERJS) ============ */
+// Используем 5 надежных STUN серверов (Google и Cloudflare)
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' }
+    ]
+  },
+  debug: 1
+};
+
+function createRoom(){
+  const code = Math.random().toString(36).substring(2,8).toUpperCase();
+  try{
+    const peer = new Peer('imperia-world-'+code, PEER_CONFIG);
+    peer.on('open', ()=>{
+      state.online.peer = peer;
+      state.online.roomCode = code;
+      log(`🌐 Комната создана: ${code}`, 'good');
+      renderOnline();
+    });
+    peer.on('connection', conn=>{
+      conn.on('open', ()=>{
+        state.online.conns.push(conn);
+        conn.send({t:'hello', name: state.country.name, flag: state.country.flag});
+      });
+      conn.on('data', d=>handleNet(d, conn));
+      conn.on('close', ()=>{
+        const pName = state.online.players[conn.peer]?.name || 'Игрок';
+        delete state.online.players[conn.peer];
+        log(`❌ ${pName} отключился`);
+        renderOnline();
+        renderWorldMap();
+      });
+    });
+    peer.on('error', e=>{
+      // Ошибку выводим в лог, чтобы игра не крашилась
+      log(`⚠️ Ошибка сети: ${e.type}`, 'disaster');
+      state.online.peer = null;
+      renderOnline();
+    });
+  }catch(e){ log('⚠️ Ошибка создания комнаты', 'disaster'); }
+}
+
+function joinRoom(code){
+  if(!code || code.length < 4){alert('Введите корректный код');return;}
+  try{
+    const peer = new Peer(PEER_CONFIG);
+    peer.on('open', ()=>{
+      const conn = peer.connect('imperia-world-'+code.toUpperCase(), {reliable:true});
+      conn.on('open', ()=>{
+        state.online.peer = peer;
+        state.online.joinedCode = code.toUpperCase();
+        state.online.conns.push(conn);
+        conn.send({t:'hello', name: state.country.name, flag: state.country.flag});
+        log('🌐 Подключено к комнате', 'good');
+        renderOnline();
+      });
+      conn.on('data', d=>handleNet(d, conn));
+      conn.on('close', ()=>{
+        const pName = state.online.players[conn.peer]?.name || 'Игрок';
+        delete state.online.players[conn.peer];
+        log(`❌ ${pName} отключился`);
+        renderOnline();
+        renderWorldMap();
+      });
+    });
+    peer.on('error', e=>{
+      log(`⚠️ Ошибка сети: ${e.type}`, 'disaster');
+      alert(`Не удалось подключиться. Ошибка: ${e.type}. Возможно, неверный код или блокировка сети.`);
+      state.online.peer = null;
+      renderOnline();
+    });
+  }catch(e){ log('⚠️ Ошибка подключения', 'disaster'); }
+}
+
+function handleNet(d, conn){
+  const o = state.online;
+  
+  if(d.t==='hello'){
+    o.players[conn.peer] = {name:d.name, flag:d.flag};
+    log(`👋 ${d.name} присоединился к игре!`, 'good');
+    renderOnline();
+    renderWorldMap();
+  }
+  else if(d.t==='war'){
+    log(`⚔️ ${d.name} объявил вам войну!`, 'disaster');
+    state.happiness = Math.max(0, state.happiness - 10);
+    renderTopbar();
+  }
+  else if(d.t==='ally'){
+    if(confirm(`${d.name} предлагает вам союз. Принять?`)){
+      conn.send({t:'ally_accept', name: state.country.name});
+      log(`🤝 Вы заключили союз с ${d.name}`, 'good');
+    } else {
+      conn.send({t:'ally_decline', name: state.country.name});
+    }
+  }
+  else if(d.t==='ally_accept'){
+    log(`🤝 ${d.name} принял ваш союз!`, 'good');
+  }
+  else if(d.t==='ally_decline'){
+    log(`❌ ${d.name} отклонил союз`);
+  }
+  else if(d.t==='peace'){
+    log(`🕊️ ${d.name} предлагает вам мир`);
+    if(confirm(`${d.name} хочет мира. Принять?`)){
+      conn.send({t:'peace_accept', name: state.country.name});
+    }
+  }
+  else if(d.t==='peace_accept'){
+    log(`🕊️ ${d.name} принял мир`, 'good');
+  }
+  else if(d.t==='gift'){
+    state.res.money += 1000;
+    log(`🎁 ${d.name} подарил вам 1000💰!`, 'good');
+    renderTopbar();
+  }
+}
+
+function disconnectOnline(){
+  if(state.online.peer) state.online.peer.destroy();
+  state.online = {peer:null,conns:[],roomCode:null,players:{},chat:[]};
+  log('❌ Вы отключились от сети');
+  renderOnline();
+  renderWorldMap();
+}
+
+/* Инициализация */
+initFlagPicker();
+window.addEventListener('beforeunload', save);
+</script>
+</body>
+</html>
